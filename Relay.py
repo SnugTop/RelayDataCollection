@@ -86,7 +86,7 @@ def calculate_statistics(data):
     return stats
 
 def plot_bandwidth(data):
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8, 4))
     
     for dtype in ['Read', 'Write']:
         d = data[data['Type'] == dtype]
@@ -107,7 +107,7 @@ def plot_bandwidth(data):
     return buf
 
 def plot_histogram(data):
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8, 4))
     
     for dtype in ['Read', 'Write']:
         d = data[data['Type'] == dtype]
@@ -128,7 +128,7 @@ def plot_histogram(data):
     return buf
 
 def plot_scatter(data):
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8, 4))
     
     read_data = data[data['Type'] == 'Read']
     write_data = data[data['Type'] == 'Write']
@@ -149,61 +149,34 @@ def plot_scatter(data):
     buf.seek(0)
     return buf
 
-def plot_boxplot(data):
-    plt.figure(figsize=(12, 6))
-    
-    read_data = data[data['Type'] == 'Read']['Bandwidth (B/s)'] / (1024 * 1024)
-    write_data = data[data['Type'] == 'Write']['Bandwidth (B/s)'] / (1024 * 1024)
-    
-    plt.boxplot([read_data, write_data], labels=['Read', 'Write'])
-    
-    plt.ylabel('Bandwidth (MB/s)')
-    plt.title('Box Plot of Read and Write Bandwidths')
-    plt.grid(True)
-    plt.tight_layout()
+def save_statistics_to_excel(stats, data, writer, relay_name):
+    # Save statistics
+    stats_df = pd.DataFrame(stats).T
+    stats_startrow = 1
+    stats_df.to_excel(writer, sheet_name=relay_name, startrow=stats_startrow, startcol=0)
 
-    buf = BytesIO()
-    plt.savefig(buf, format='png')
-    plt.close()
-    buf.seek(0)
-    return buf
-
-def save_statistics_to_excel(stats, data, excel_filename):
-    with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
-        # Save statistics
-        stats_df = pd.DataFrame(stats).T
-        stats_df.to_excel(writer, sheet_name='Statistics')
-        
-        # Save data
-        data.to_excel(writer, sheet_name='Data', index=False)
-        
-        # Save plots
-        bandwidth_over_time_plot = plot_bandwidth(data)
-        bandwidth_histogram_plot = plot_histogram(data)
-        bandwidth_scatter_plot = plot_scatter(data)
-        bandwidth_boxplot_plot = plot_boxplot(data)
-        
-        worksheet = writer.book.create_sheet('Plots')
-        worksheet = writer.sheets['Plots']
-        
-        img = openpyxl.drawing.image.Image(bandwidth_over_time_plot)
-        worksheet.add_image(img, 'A1')
-        
-        img = openpyxl.drawing.image.Image(bandwidth_histogram_plot)
-        worksheet.add_image(img, 'A30')
-        
-        img = openpyxl.drawing.image.Image(bandwidth_scatter_plot)
-        worksheet.add_image(img, 'A60')
-        
-        img = openpyxl.drawing.image.Image(bandwidth_boxplot_plot)
-        worksheet.add_image(img, 'A90')
-
-def analyze_relay(fingerprint, relay_name, output_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # Save plots
+    bandwidth_over_time_plot = plot_bandwidth(data)
+    bandwidth_histogram_plot = plot_histogram(data)
+    bandwidth_scatter_plot = plot_scatter(data)
     
-    excel_filename = os.path.join(output_dir, f"{relay_name}.xlsx")
+    worksheet = writer.sheets[relay_name]
     
+    plots_startrow = stats_startrow + len(stats_df) + 2
+    img = openpyxl.drawing.image.Image(bandwidth_over_time_plot)
+    worksheet.add_image(img, f'B{plots_startrow + 0}')
+    
+    img = openpyxl.drawing.image.Image(bandwidth_histogram_plot)
+    worksheet.add_image(img, f'B{plots_startrow + 20}')
+    
+    img = openpyxl.drawing.image.Image(bandwidth_scatter_plot)
+    worksheet.add_image(img, f'B{plots_startrow + 40}')
+    
+    # Save data
+    data_startrow = plots_startrow + 60
+    data.to_excel(writer, sheet_name=relay_name, startrow=data_startrow, index=False)
+
+def analyze_relay(fingerprint, relay_name, writer):
     try:
         # Load data
         data = load_data(fingerprint)
@@ -218,10 +191,62 @@ def analyze_relay(fingerprint, relay_name, output_dir):
                 print(f"{k}: {v:.2f}")
         
         # Save statistics, data, and plots to Excel
-        save_statistics_to_excel(stats, data, excel_filename)
+        save_statistics_to_excel(stats, data, writer, relay_name)
 
     except Exception as e:
         print(f"Failed to analyze relay {relay_name} with fingerprint {fingerprint}: {e}")
+
+def create_summary_sheet(writer, all_stats):
+    if not all_stats:
+        return
+
+    # Create the Summary sheet
+    writer.book.create_sheet('Summary')
+    
+    mean_values = []
+    stddev_values = []
+    relay_names = []
+
+    for relay_name, stats in all_stats.items():
+        try:
+            mean_values.append(stats['Total']['Mean (MB/s)'])
+            stddev_values.append(stats['Total']['Standard Deviation (MB/s)'])
+            relay_names.append(relay_name)
+        except KeyError as e:
+            print(f"KeyError: {e} in relay {relay_name}")
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(relay_names, mean_values)
+    plt.title('Total Mean Bandwidth for Each Relay')
+    plt.xlabel('Relay')
+    plt.ylabel('Mean Bandwidth (MB/s)')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+
+    buf_mean = BytesIO()
+    plt.savefig(buf_mean, format='png')
+    plt.close()
+    buf_mean.seek(0)
+    
+    plt.figure(figsize=(10, 6))
+    plt.bar(relay_names, stddev_values)
+    plt.title('Total Standard Deviation of Bandwidth for Each Relay')
+    plt.xlabel('Relay')
+    plt.ylabel('Standard Deviation (MB/s)')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+
+    buf_std = BytesIO()
+    plt.savefig(buf_std, format='png')
+    plt.close()
+    buf_std.seek(0)
+
+    worksheet = writer.sheets['Summary']
+    img_mean = openpyxl.drawing.image.Image(buf_mean)
+    img_std = openpyxl.drawing.image.Image(buf_std)
+
+    worksheet.add_image(img_mean, 'B15')
+    worksheet.add_image(img_std, 'B45')
 
 def main():
     if len(sys.argv) != 2:
@@ -229,15 +254,31 @@ def main():
         sys.exit(1)
     
     input_excel_filename = sys.argv[1]
-    output_dir = "Files"
+    output_excel_filename = "Relays_Analysis.xlsx"
     
     relays_df = pd.read_excel(input_excel_filename)
-    
-    for _, row in relays_df.iterrows():
-        fingerprint = row['Fingerprint']
-        relay_name = row['Relay Name']
-        print(f"\nAnalyzing {relay_name} with fingerprint {fingerprint}...\n")
-        analyze_relay(fingerprint, relay_name, output_dir)
+    all_stats = {}
+
+    with pd.ExcelWriter(output_excel_filename, engine='openpyxl') as writer:
+        # Create a dummy sheet to ensure at least one sheet is present
+        writer.book.create_sheet("DummySheet")
+        
+        for _, row in relays_df.iterrows():
+            fingerprint = row['Fingerprint']
+            relay_name = row['Relay Name']
+            print(f"\nAnalyzing {relay_name} with fingerprint {fingerprint}...\n")
+            try:
+                analyze_relay(fingerprint, relay_name, writer)
+                data = load_data(fingerprint)
+                stats = calculate_statistics(data)
+                all_stats[relay_name] = stats
+            except Exception as e:
+                print(f"Error processing relay {relay_name} with fingerprint {fingerprint}: {e}")
+        
+        create_summary_sheet(writer, all_stats)
+        
+        # Remove the dummy sheet
+        del writer.book["DummySheet"]
 
 if __name__ == "__main__":
     main()
