@@ -305,7 +305,7 @@ def main():
         sys.exit(1)
     
     input_excel_filename = sys.argv[1]
-    output_excel_filename = "Relays_Analysis_Extended2.xlsx"
+    output_excel_filename = "Relays_Analysis.xlsx"
     
     relays_df = pd.read_excel(input_excel_filename)
     all_stats = {}
