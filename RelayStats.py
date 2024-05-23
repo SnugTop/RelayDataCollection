@@ -240,48 +240,64 @@ def create_summary_sheet(writer, all_stats):
     
     mean_values = []
     stddev_values = []
+    median_values = []
+    iqr_values = []
+    skewness_values = []
+    kurtosis_values = []
+    coef_var_values = []
     relay_names = []
 
     for relay_name, stats in all_stats.items():
         try:
             mean_values.append(stats['Total']['Mean (MB/s)'])
             stddev_values.append(stats['Total']['Standard Deviation (MB/s)'])
+            median_values.append(stats['Total']['Median (MB/s)'])
+            iqr_values.append(stats['Total']['IQR (MB/s)'])
+            skewness_values.append(stats['Total']['Skewness'])
+            kurtosis_values.append(stats['Total']['Kurtosis'])
+            coef_var_values.append(stats['Total']['Coefficient of Variation'])
             relay_names.append(relay_name)
         except KeyError as e:
             print(f"KeyError: {e} in relay {relay_name}")
 
+    summary_stats_df = pd.DataFrame({
+        'Relay': relay_names,
+        'Mean (MB/s)': mean_values,
+        'Standard Deviation (MB/s)': stddev_values,
+        'Median (MB/s)': median_values,
+        'IQR (MB/s)': iqr_values,
+        'Skewness': skewness_values,
+        'Kurtosis': kurtosis_values,
+        'Coefficient of Variation': coef_var_values
+    })
+    summary_stats_df.to_excel(writer, sheet_name='Summary', startrow=1, index=False)
+
+    # Plot and save graphs for each statistic
+    plot_statistics(writer, summary_stats_df, 'Mean (MB/s)', 'Mean Bandwidth for Each Relay', 'B15')
+    plot_statistics(writer, summary_stats_df, 'Standard Deviation (MB/s)', 'Standard Deviation of Bandwidth for Each Relay', 'B45')
+    plot_statistics(writer, summary_stats_df, 'Median (MB/s)', 'Median Bandwidth for Each Relay', 'B75')
+    plot_statistics(writer, summary_stats_df, 'IQR (MB/s)', 'IQR of Bandwidth for Each Relay', 'B105')
+    plot_statistics(writer, summary_stats_df, 'Skewness', 'Skewness of Bandwidth for Each Relay', 'B135')
+    plot_statistics(writer, summary_stats_df, 'Kurtosis', 'Kurtosis of Bandwidth for Each Relay', 'B165')
+    plot_statistics(writer, summary_stats_df, 'Coefficient of Variation', 'Coefficient of Variation for Each Relay', 'B195')
+
+def plot_statistics(writer, summary_stats_df, column, title, position):
     plt.figure(figsize=(10, 6))
-    plt.bar(relay_names, mean_values)
-    plt.title('Total Mean Bandwidth for Each Relay')
+    plt.bar(summary_stats_df['Relay'], summary_stats_df[column])
+    plt.title(title)
     plt.xlabel('Relay')
-    plt.ylabel('Mean Bandwidth (MB/s)')
+    plt.ylabel(column)
     plt.xticks(rotation=90)
     plt.tight_layout()
 
-    buf_mean = BytesIO()
-    plt.savefig(buf_mean, format='png')
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
     plt.close()
-    buf_mean.seek(0)
-    
-    plt.figure(figsize=(10, 6))
-    plt.bar(relay_names, stddev_values)
-    plt.title('Total Standard Deviation of Bandwidth for Each Relay')
-    plt.xlabel('Relay')
-    plt.ylabel('Standard Deviation (MB/s)')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-
-    buf_std = BytesIO()
-    plt.savefig(buf_std, format='png')
-    plt.close()
-    buf_std.seek(0)
+    buf.seek(0)
 
     worksheet = writer.sheets['Summary']
-    img_mean = openpyxl.drawing.image.Image(buf_mean)
-    img_std = openpyxl.drawing.image.Image(buf_std)
-
-    worksheet.add_image(img_mean, 'B15')
-    worksheet.add_image(img_std, 'B45')
+    img = openpyxl.drawing.image.Image(buf)
+    worksheet.add_image(img, position)
 
 def main():
     if len(sys.argv) != 2:
@@ -289,7 +305,7 @@ def main():
         sys.exit(1)
     
     input_excel_filename = sys.argv[1]
-    output_excel_filename = "Relays_Analysis_Extended.xlsx"
+    output_excel_filename = "Relays_Analysis_Extended2.xlsx"
     
     relays_df = pd.read_excel(input_excel_filename)
     all_stats = {}
