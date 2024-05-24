@@ -191,3 +191,115 @@ A scatter plot of bandwidth values against time helps in visualizing the spread 
 ## Conclusion
 
 By interpreting these statistics and visualizations, we can gain a comprehensive understanding of how much and in what way the relays' bandwidth fluctuates. This helps in assessing the reliability and performance of the relays and in identifying potential issues or areas for improvement.
+
+# README
+
+## Project Overview
+
+This project aims to analyze the bandwidth fluctuations of Tor network relays by collecting and processing bandwidth data. The goal is to understand how relay bandwidth varies over time and to interpret these variations to improve relay performance monitoring. This analysis helps in identifying the stability and reliability of the relays and can support the new approach where clients report throughput they observe, providing timely performance feedback.
+
+## Features
+
+- **Fetch Bandwidth Data**: Collects bandwidth data for specified relays from the Tor network using the Onionoo API.
+- **Data Processing**: Processes the collected data to extract recent bandwidth usage.
+- **Statistical Analysis**: Calculates various statistics to interpret bandwidth fluctuations.
+- **Data Visualization**: Generates plots to visualize bandwidth over time, histogram of bandwidth values, scatter plots, and autocorrelation and partial autocorrelation plots.
+- **Excel Report**: Saves the statistical analysis and visualizations to an Excel file.
+
+## Statistics Calculated
+
+- **Mean (MB/s)**: Average bandwidth usage over the specified period.
+- **Standard Deviation (MB/s)**: Measure of bandwidth variation or dispersion from the mean.
+- **Range (MB/s)**: Difference between maximum and minimum bandwidth values.
+- **Coefficient of Variation**: Ratio of the standard deviation to the mean, indicating relative variability.
+- **Median (MB/s)**: Middle value of the bandwidth data, providing a robust measure of central tendency.
+- **IQR (MB/s)**: Interquartile range, indicating the range within which the middle 50% of the data lies.
+- **Skewness**: Measures the asymmetry of the bandwidth distribution.
+- **Kurtosis**: Measures the "tailedness" of the bandwidth distribution.
+- **ACF**: Autocorrelation function values, showing the correlation of bandwidth values with lagged values.
+- **PACF**: Partial autocorrelation function values, showing the correlation of bandwidth values with lagged values, controlling for intermediate lags.
+
+## How to Run
+
+1. **Install Required Libraries**:
+
+   ```bash
+   pip install pandas numpy matplotlib openpyxl requests statsmodels scipy
+   ```
+
+2. **Run the Script**:
+
+   ```bash
+   python analyze_bandwidth.py <input_excel_filename>
+   ```
+
+   - `<input_excel_filename>`: Path to the input Excel file containing relay fingerprints and names.
+
+## Input Excel File Format
+
+The input Excel file should have the following columns:
+
+- **Relay Name**: Name of the relay.
+- **Fingerprint**: Fingerprint of the relay.
+
+## Output
+
+- **Excel Report**: The script generates an Excel file `Relays_Analysis.xlsx` containing the following:
+  - **Relay Sheets**: Each relay has its own sheet with statistical analysis and visualizations.
+  - **Summary Sheet**: Includes aggregated statistics and bar plots for mean, standard deviation, median, IQR, skewness, kurtosis, and coefficient of variation across all relays.
+
+## Detailed Explanation of Statistics
+
+### Mean (MB/s)
+
+- **Description**: The average bandwidth usage over the specified period.
+- **Purpose**: Indicates consistent handling of data by the relay. High mean signifies high data handling capacity.
+
+### Standard Deviation (MB/s)
+
+- **Description**: Measures the amount of variation or dispersion of bandwidth values from the mean.
+- **Purpose**: Low standard deviation indicates stable bandwidth usage, while high standard deviation suggests significant fluctuations.
+
+### Range (MB/s)
+
+- **Description**: Difference between the maximum and minimum bandwidth values recorded.
+- **Purpose**: Indicates the extremes of bandwidth usage, highlighting periods of heavy usage or inactivity.
+
+### Coefficient of Variation
+
+- **Description**: Ratio of the standard deviation to the mean.
+- **Purpose**: Provides a normalized measure of bandwidth variability. High coefficient indicates inconsistent usage.
+
+### Median (MB/s)
+
+- **Description**: The middle value of the bandwidth data.
+- **Purpose**: Offers a robust measure of central tendency, especially useful in the presence of outliers.
+
+### Interquartile Range (IQR)
+
+- **Description**: The range within which the middle 50% of the data lies.
+- **Purpose**: Helps understand the spread of the central portion of the data, providing insight into typical variability.
+
+### Skewness
+
+- **Description**: Measures the asymmetry of the distribution of bandwidth values.
+- **Purpose**: Indicates whether the bandwidth data is skewed towards higher or lower values.
+
+### Kurtosis
+
+- **Description**: Measures the "tailedness" of the bandwidth distribution.
+- **Purpose**: Helps identify the presence of outliers and the propensity for extreme values.
+
+### Autocorrelation (ACF)
+
+- **Description**: Measures how current bandwidth values are related to past values.
+- **Purpose**: Detects periodic patterns or trends in bandwidth usage.
+
+### Partial Autocorrelation (PACF)
+
+- **Description**: Measures the correlation between bandwidth values and their lagged values, controlling for intermediate lags.
+- **Purpose**: Helps identify direct relationships in the time series data.
+
+## Conclusion
+
+By analyzing these statistics and visualizations, we can gain a comprehensive understanding of how much and in what way the relays' bandwidth fluctuates. This helps in assessing the reliability and performance of the relays and in identifying potential issues or areas for improvement.

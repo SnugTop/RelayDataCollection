@@ -81,6 +81,14 @@ def calculate_statistics(data):
             # Calculate the appropriate number of lags
             nlags = min(len(d) // 2, 40)
 
+            # Calculate the frequency of outliers
+            q75, q25 = np.percentile(d['Bandwidth (B/s)'], [75, 25])
+            iqr_value = q75 - q25
+            lower_bound = q25 - 1.5 * iqr_value
+            upper_bound = q75 + 1.5 * iqr_value
+            outliers = d[(d['Bandwidth (B/s)'] < lower_bound) | (d['Bandwidth (B/s)'] > upper_bound)]
+            frequency_of_outliers = len(outliers)
+
             stats[dtype] = {
                 'Mean (MB/s)': mean,
                 'Standard Deviation (MB/s)': std_dev,
@@ -90,6 +98,7 @@ def calculate_statistics(data):
                 'IQR (MB/s)': iqr(d['Bandwidth (B/s)']) / (1024 * 1024),
                 'Skewness': d['Bandwidth (B/s)'].skew(),
                 'Kurtosis': d['Bandwidth (B/s)'].kurtosis(),
+                'Frequency of Outliers': frequency_of_outliers,
                 'ACF': acf(d['Bandwidth (B/s)'], nlags=nlags).tolist(),  # Convert to list
                 'PACF': pacf(d['Bandwidth (B/s)'], nlags=nlags).tolist()  # Convert to list
             }
@@ -245,6 +254,7 @@ def create_summary_sheet(writer, all_stats):
     skewness_values = []
     kurtosis_values = []
     coef_var_values = []
+    freq_outliers_values = []
     relay_names = []
 
     for relay_name, stats in all_stats.items():
@@ -256,6 +266,7 @@ def create_summary_sheet(writer, all_stats):
             skewness_values.append(stats['Total']['Skewness'])
             kurtosis_values.append(stats['Total']['Kurtosis'])
             coef_var_values.append(stats['Total']['Coefficient of Variation'])
+            freq_outliers_values.append(stats['Total']['Frequency of Outliers'])
             relay_names.append(relay_name)
         except KeyError as e:
             print(f"KeyError: {e} in relay {relay_name}")
@@ -268,7 +279,8 @@ def create_summary_sheet(writer, all_stats):
         'IQR (MB/s)': iqr_values,
         'Skewness': skewness_values,
         'Kurtosis': kurtosis_values,
-        'Coefficient of Variation': coef_var_values
+        'Coefficient of Variation': coef_var_values,
+        'Frequency of Outliers': freq_outliers_values
     })
     summary_stats_df.to_excel(writer, sheet_name='Summary', startrow=1, index=False)
 
@@ -280,6 +292,7 @@ def create_summary_sheet(writer, all_stats):
     plot_statistics(writer, summary_stats_df, 'Skewness', 'Skewness of Bandwidth for Each Relay', 'B135')
     plot_statistics(writer, summary_stats_df, 'Kurtosis', 'Kurtosis of Bandwidth for Each Relay', 'B165')
     plot_statistics(writer, summary_stats_df, 'Coefficient of Variation', 'Coefficient of Variation for Each Relay', 'B195')
+    plot_statistics(writer, summary_stats_df, 'Frequency of Outliers', 'Frequency of Outliers for Each Relay', 'B225')
 
 def plot_statistics(writer, summary_stats_df, column, title, position):
     plt.figure(figsize=(10, 6))
