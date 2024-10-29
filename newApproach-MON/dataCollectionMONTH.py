@@ -31,15 +31,14 @@ def extract_bandwidth_data(relay):
         return []
 
     data_points = []
-    one_month_ago = datetime.now(timezone.utc) - timedelta(days=60)
-    start_date = one_month_ago.replace(day=1)
-    end_date = one_month_ago + timedelta(days=30)
+    end_date = datetime.now(timezone.utc) - timedelta(days=30)  # End one month ago from today
+    start_date = end_date - timedelta(days=30)  # Start two months ago
 
     # For write_history and read_history
     for history, data_type in [(write_history, 'Write'), (read_history, 'Read')]:
         if not history:
             continue
-        data = history.get("1_month")
+        data = history.get("1_month") or history.get("3_months") or history.get("1_week")
         if not data:
             continue
 
@@ -49,7 +48,10 @@ def extract_bandwidth_data(relay):
         interval_duration = data["interval"]
 
         for i, value in enumerate(interval_values):
+            if value is None:
+                continue
             timestamp = interval_start + pd.Timedelta(seconds=i * interval_duration)
+            # Check if the timestamp falls within our desired one-month range
             if start_date <= timestamp <= end_date:
                 data_points.append({
                     'Fingerprint': fingerprint,
@@ -60,13 +62,18 @@ def extract_bandwidth_data(relay):
 
     return data_points
 
+
 def main():
     print("Fetching bandwidth data for all relays...")
     all_bandwidth_data = fetch_all_bandwidth_data()
     all_data_points = []
+    relay_count = 0  # Counter for relays with data
     print("Extracting bandwidth data...")
+
     for relay in all_bandwidth_data:
         data_points = extract_bandwidth_data(relay)
+        if data_points:
+            relay_count += 1  # Increment if relay has data
         all_data_points.extend(data_points)
 
     # Create DataFrame
@@ -79,10 +86,21 @@ def main():
     # Remove timezone info
     data['Timestamp'] = pd.to_datetime(data['Timestamp']).dt.tz_localize(None)
 
-    # Save to CSV
+    # Filter out relays with zero mean bandwidth to avoid division by zero
+    cov_df = data.groupby('Fingerprint')['Bandwidth (B/s)'].apply(
+        lambda x: x.std() / x.mean() if x.mean() != 0 else None
+    ).dropna().reset_index()
+    cov_df.columns = ['Fingerprint', 'Coefficient of Variation']
+
+    # Merge CoV data with the original data points
+    data = pd.merge(data, cov_df, on='Fingerprint', how='left')
+
+    # Save to CSV with CoV included
     print("Saving data to CSV...")
-    data.to_csv('relay_bandwidth_data.csv', index=False)
-    print("Data collection completed and saved to 'relay_bandwidth_data.csv'.")
+    data.to_csv('relay_bandwidth_data_with_cov.csv', index=False)
+    print(f"Data collection completed and saved to 'relay_bandwidth_data_with_cov.csv'.")
+    print(f"Total relays with data: {relay_count}")
+
 
 if __name__ == '__main__':
     main()
